@@ -39,6 +39,7 @@ function getSectionThumbs(section) {
   if (section==='TICKETS') return [
     {angle:-2.4, dist:270, w:W,    h:H, label:'SINGLE DAY'},
     {angle: 0.3, dist:250, w:W+20, h:H, label:'FULL PASS'},
+    {angle: 1.8, dist:290, w:W+10, h:H, label:'BRACELETS', isVideo:true},
   ];
   if (section==='ABOUT') return [
     {angle:-0.9, dist:260, w:W+20, h:H, label:'CONCEPT'},
@@ -82,6 +83,52 @@ function getThumbContent(section, thumbIndex) {
       'Exploratory. Rehabilitative.',
     ];
   }
+  if (section==='LINEUP') {
+    if (thumbIndex===0) return [
+      'DAY 1 — 21.07',
+      '',
+      'EEFOE',
+      'SURTO',
+      'CLOVER',
+      'Honorarie',
+    ];
+    if (thumbIndex===1) return [
+      'DAY 2 — 22.07',
+      '',
+      'Flourescence',
+      'NAPALMIS',
+      'Takawan',
+      'ClimATICC',
+    ];
+    if (thumbIndex===2) return [
+      'DAY 3 — 23.07',
+      '',
+      'Yasmine Forfana',
+      'Liquidice',
+      'Hyper-Stoic',
+      'Unmasked',
+    ];
+  }
+  if (section==='TICKETS') {
+    if (thumbIndex===0) return [
+      'SINGLE DAY PASS',
+      '',
+      'Access to one full day',
+      'of the festival, including',
+      'all stages and installations.',
+      '',
+      'Choose your date at checkout.',
+    ];
+    if (thumbIndex===1) return [
+      'FULL FESTIVAL PASS',
+      '',
+      'Access to all days',
+      '21.07 — 25.07',
+      '',
+      'Includes entry to every stage,',
+      'workshop, and late program.',
+    ];
+  }
   return ['Content coming soon.'];
 }
 
@@ -89,6 +136,7 @@ function getThumbContent(section, thumbIndex) {
 let stage = 1;
 let stageTimer = 0;
 let font, logoHH, logoHyphen;
+let bracletsVideo; // HTML5 video element for the BRACELETS thumbnail
 let modelData = [];
 let modelsLoaded = 0;
 let setupDone = false;
@@ -174,6 +222,16 @@ function setup() {
   setupDone = true;
   for (let i of pendingThumbBake) bakeThumbGraphics(i);
   pendingThumbBake = [];
+
+  // Hidden HTML5 video element for the BRACELETS thumbnail — plays muted,
+  // looping, autoplay. We draw its frames manually via image() in 2D overlay.
+  bracletsVideo = createVideo(['bracelets.mp4'], () => { bracletsVideo.loop(); });
+  bracletsVideo.hide();
+  bracletsVideo.volume(0);
+  bracletsVideo.elt.muted = true;
+  bracletsVideo.elt.setAttribute('playsinline', '');
+  bracletsVideo.play();
+
   // Warmup all textures immediately in setup — happens during initial load
   // so every stage transition is instant
   push();
@@ -503,7 +561,8 @@ function drawThumbnailsBillboard(modelIndex,cx,cy,sc,br,alpha){
 
     // Base size vs expanded size
     let baseW=td.w, baseH=td.h;
-    let bigW=baseW*2.6, bigH=baseH*2.8;
+    let bigW = td.isVideo ? baseW*3.0 : baseW*2.6;
+    let bigH = td.isVideo ? baseH*3.2 : baseH*2.8;
     let drawW=lerp(baseW, bigW, et);
     let drawH=lerp(baseH, bigH, et);
 
@@ -517,8 +576,13 @@ function drawThumbnailsBillboard(modelIndex,cx,cy,sc,br,alpha){
         line(asx,asy,tsx,tsy);
       }
 
-      // Thumbnail image (render)
-      if(thumbGraphics[modelIndex]&&thumbGraphics[modelIndex][ti]){
+      // Thumbnail image (render) — video for BRACELETS, baked render otherwise
+      if(td.isVideo && bracletsVideo){
+        let videoAlpha = isExpanded ? alpha : alpha*0.85;
+        tint(255,videoAlpha);
+        image(bracletsVideo,tsx-drawW/2,tsy-drawH/2,drawW,drawH);
+        noTint();
+      } else if(thumbGraphics[modelIndex]&&thumbGraphics[modelIndex][ti]){
         tint(255,alpha*0.65);
         image(thumbGraphics[modelIndex][ti],tsx-drawW/2,tsy-drawH/2,drawW,drawH);
         noTint();
@@ -537,6 +601,15 @@ function drawThumbnailsBillboard(modelIndex,cx,cy,sc,br,alpha){
         textSize(12);textStyle(BOLD);textAlign(CENTER,CENTER);
         text(td.label,tsx,tsy);
         textStyle(NORMAL);
+      } else if(td.isVideo){
+        // Expanded BRACELETS: video fills the frame, label only at top, no body text
+        noStroke();fill(255,255,255,alpha);
+        textSize(13);textStyle(BOLD);textAlign(CENTER,TOP);
+        text(td.label, tsx, tsy-drawH/2+14);
+        textStyle(NORMAL);
+        fill(255,255,255,alpha*0.4);
+        textSize(10);textAlign(CENTER,BOTTOM);
+        text('CLICK TO CLOSE', tsx, tsy+drawH/2-10);
       } else {
         // Expanded: title + divider + body text
         let bodyA=map(thumbExpandT,0.3,0.8,0,alpha);
